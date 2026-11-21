@@ -5,37 +5,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+const KEY = process.env.EXPO_PUBLIC_LOCATIONIQ_KEY;
 
 async function autocomplete(input) {
-  const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': KEY },
-    body: JSON.stringify({ input, includedRegionCodes: ['in'] }),
-  });
+  const url =
+    `https://api.locationiq.com/v1/autocomplete?key=${KEY}` +
+    `&q=${encodeURIComponent(input)}&limit=8&countrycodes=in&dedupe=1&normalizecity=1`;
+  const res = await fetch(url);
   const json = await res.json();
-  return (json.suggestions || [])
-    .filter((s) => s.placePrediction)
-    .map((s) => ({
-      id: s.placePrediction.placeId,
-      name: s.placePrediction.structuredFormat?.mainText?.text || s.placePrediction.text.text,
-      address: s.placePrediction.structuredFormat?.secondaryText?.text || '',
-    }));
+  // no matches / rate limit come back as an object, not an array
+  if (!Array.isArray(json)) return [];
+
+  return json.map((p) => ({
+    id: String(p.place_id),
+    name: p.display_place || p.address?.name || p.display_name.split(',')[0],
+    address: p.display_address || p.display_name,
+    lat: parseFloat(p.lat),
+    lng: parseFloat(p.lon),
+  }));
 }
 
-async function placeDetails(p) {
-  const res = await fetch(`https://places.googleapis.com/v1/places/${p.id}`, {
-    headers: { 'X-Goog-Api-Key': KEY, 'X-Goog-FieldMask': 'location,formattedAddress' },
-  });
-  const json = await res.json();
-  return {
-    ...p,
-    address: json.formattedAddress || p.address,
-    lat: json.location?.latitude,
-    lng: json.location?.longitude,
-  };
-}
-
+// coordinates already come with the result, so no second call is needed
+const placeDetails = async (p) => p;
 /**
  * multi=false: tap a result -> onConfirm([place]) immediately
  * multi=true : tap to add chips -> "Submit drop points" -> onConfirm(list)
