@@ -14,16 +14,6 @@ const fmtTime = (d) => {
   return `${pad(h)}:${pad(d.getMinutes())} ${ap}`;
 };
 
-// approximate road km = straight line x 1.25
-const kmBetween = (a, b) => {
-  if (a?.lat == null || b?.lat == null) return 0;
-  const rad = (x) => (x * Math.PI) / 180;
-  const dLat = rad(b.lat - a.lat);
-  const dLng = rad(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return Math.round(2 * 6371 * Math.asin(Math.sqrt(h)) * 1.25);
-};
-
 const toHistory = (trip, status) => {
   let duration = '—';
   if (status === 'Completed' && trip.startedMs) {
@@ -47,13 +37,14 @@ export const TripProvider = ({ children }) => {
   const [upcoming] = useState(UPCOMING_TRIPS);
   const [history, setHistory] = useState(HISTORY_TRIPS);
 
-  const startTrip = ({ source, destination, drops }) => {
+  // legs[i] = distance from points[i] to points[i + 1], already verified by the driver
+  const startTrip = ({ points, legs }) => {
     const now = new Date();
-    const points = [source, ...drops, ...(destination ? [destination] : [])];
     const stops = points.map((p, i) => ({
       name: p.name,
       area: p.address || '',
-      km: i === 0 ? 0 : kmBetween(points[i - 1], p),
+      km: i === 0 ? 0 : legs[i - 1].km,
+      kmSource: i === 0 ? null : legs[i - 1].src, // 'auto' | 'manual', for admin audit
       date: fmtDate(now),
       time: '',
       done: false,
@@ -61,6 +52,7 @@ export const TripProvider = ({ children }) => {
       lat: p.lat,
       lng: p.lng,
     }));
+    const total = Math.round(stops.reduce((a, s) => a + s.km, 0) * 10) / 10;
     setActive({
       id: `TR-${Date.now() % 100000}`,
       status: 'In transit',
@@ -69,7 +61,7 @@ export const TripProvider = ({ children }) => {
       startedAt: `${fmtDate(now)} · ${fmtTime(now)}`,
       startedMs: now.getTime(),
       progress: 0,
-      distanceKm: stops.reduce((a, s) => a + s.km, 0),
+      distanceKm: total,
       stops,
     });
   };

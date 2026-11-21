@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Modal, Pressable, Text, TextInput, View,
+  ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const KEY = process.env.EXPO_PUBLIC_LOCATIONIQ_KEY;
 
+// returns [] when there are simply no matches, throws when the service itself failed
 async function autocomplete(input) {
   const url =
     `https://api.locationiq.com/v1/autocomplete?key=${KEY}` +
-    `&q=${encodeURIComponent(input)}&limit=8&countrycodes=in&dedupe=1&normalizecity=1`;
+    `&q=${encodeURIComponent(input)}&limit=8&countrycodes=in&dedupe=1&normalizecity=1` +
+    `&viewbox=72.6,22.1,80.9,15.6`;
   const res = await fetch(url);
+  if (res.status === 404) return []; // LocationIQ answers 404 for "no matches"
+  if (!res.ok) throw new Error(`search ${res.status}`);
   const json = await res.json();
-  // no matches / rate limit come back as an object, not an array
-  if (!Array.isArray(json)) return [];
-
+  if (!Array.isArray(json)) throw new Error('bad response');
   return json.map((p) => ({
     id: String(p.place_id),
     name: p.display_place || p.address?.name || p.display_name.split(',')[0],
@@ -25,58 +27,110 @@ async function autocomplete(input) {
   }));
 }
 
-// coordinates already come with the result, so no second call is needed
-const placeDetails = async (p) => p;
 /**
  * multi=false: tap a result -> onConfirm([place]) immediately
  * multi=true : tap to add chips -> "Submit drop points" -> onConfirm(list)
+ * needKm     : manual places must include distance (km) from the previous point
  */
-const PlaceSearchModal = ({ visible, title, multi = false, initial = [], onClose, onConfirm }) => {
+const PlaceSearchModal = ({
+  visible, title, multi = false, needKm = false, initial = [], onClose, onConfirm,
+}) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [searched, setSearched] = useState(false);
   const [picked, setPicked] = useState([]);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [mName, setMName] = useState('');
+  const [mKm, setMKm] = useState('');
+  const [mErr, setMErr] = useState('');
   const timer = useRef(null);
+  const reqId = useRef(0);
 
   useEffect(() => {
     if (visible) {
       setQuery('');
       setResults([]);
+      setFailed(false);
+      setSearched(false);
+      setManualOpen(false);
       setPicked(initial);
     }
   }, [visible]);
 
   useEffect(() => {
     clearTimeout(timer.current);
+    setFailed(false);
+    setSearched(false);
     if (query.trim().length < 3) {
+      reqId.current++; // drop any in-flight response
       setResults([]);
+      setLoading(false);
       return;
     }
     timer.current = setTimeout(async () => {
+      const id = ++reqId.current;
       setLoading(true);
       try {
-        setResults(await autocomplete(query.trim()));
+        const list = await autocomplete(query.trim());
+        if (id !== reqId.current) return;
+        setResults(list);
       } catch {
+        if (id !== reqId.current) return;
         setResults([]);
+        setFailed(true);
       }
+      setSearched(true);
       setLoading(false);
     }, 350);
     return () => clearTimeout(timer.current);
   }, [query]);
 
-  const onPick = async (p) => {
-    setLoading(true);
-    let full = p;
-    try {
-      full = await placeDetails(p);
-    } catch {}
-    setLoading(false);
+  const canManual =
+    !loading && query.trim().length >= 3 && (failed || (searched && results.length === 0));
+
+  const onPick = (p) => {
     if (multi) {
-      setPicked((l) => (l.some((x) => x.id === full.id) ? l : [...l, full]));
+      setPicked((l) => (l.some((x) => x.id === p.id) ? l : [...l, p]));
       setQuery('');
       setResults([]);
     } else {
-      onConfirm([full]);
+      onConfirm([p]);
+    }
+  };
+
+  const openManual = () => {
+    setMName(query.trim());
+    setMKm('');
+    setMErr('');
+    setManualOpen(true);
+  };
+
+  const submitManual = () => {
+    const name = mName.trim();
+    if (!name) return setMErr('Enter the location name');
+    let km;
+    if (needKm) {
+      km = parseFloat(mKm.replace(',', '.'));
+      if (!(km > 0) || km > 5000) return setMErr('Enter a valid distance in km');
+      km = Math.round(km * 10) / 10;
+    }
+    const place = {
+      id: `manual-${Date.now()}`,
+      name,
+      address: 'Added manually',
+      lat: null,
+      lng: null,
+      manual: true,
+      ...(needKm ? { km } : {}),
+    };
+    setManualOpen(false);
+    if (multi) {
+      setPicked((l) => [...l, place]);
+      setQuery('');
+    } else {
+      onConfirm([place]);
     }
   };
 
@@ -111,6 +165,27 @@ const PlaceSearchModal = ({ visible, title, multi = false, initial = [], onClose
           ) : null}
         </View>
 
+        {/* manual fallback: search failed or nothing found */}
+        {canManual && (
+          <View className="p-4 mx-4 mt-3 border border-amber-300 bg-amber-50 rounded-2xl">
+            <Text className="text-sm font-semibold text-amber-900">
+              {failed ? 'Location search is not responding.' : 'No places found.'}
+            </Text>
+            <Text className="mt-0.5 text-xs text-amber-800">
+              {needKm
+                ? 'Add the location manually with its distance in km.'
+                : 'Add the location manually.'}
+            </Text>
+            <Pressable
+              onPress={openManual}
+              className="flex-row items-center self-start px-4 py-2.5 mt-3 rounded-xl bg-primary active:bg-primary-dark"
+            >
+              <MaterialCommunityIcons name="plus-circle" size={18} color="#fff" />
+              <Text className="ml-1.5 text-sm font-bold text-white">Add manually</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* picked chips (multi) */}
         {multi && picked.length > 0 && (
           <View className="flex-row flex-wrap px-4 pt-3">
@@ -121,7 +196,7 @@ const PlaceSearchModal = ({ visible, title, multi = false, initial = [], onClose
                 className="flex-row items-center bg-primary/10 rounded-full pl-3 pr-2 py-1.5 mr-2 mb-2"
               >
                 <Text className="text-xs font-semibold text-primary">
-                  {i + 1}. {p.name}
+                  {i + 1}. {p.name}{p.manual ? ` · ${p.km} km` : ''}
                 </Text>
                 <MaterialCommunityIcons name="close" size={14} color="#AF1D5A" style={{ marginLeft: 4 }} />
               </Pressable>
@@ -135,11 +210,6 @@ const PlaceSearchModal = ({ visible, title, multi = false, initial = [], onClose
           data={results}
           keyExtractor={(i) => i.id}
           keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            query.trim().length >= 3 && !loading ? (
-              <Text className="mt-10 text-center text-slate-400">No places found</Text>
-            ) : null
-          }
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onPick(item)}
@@ -169,6 +239,71 @@ const PlaceSearchModal = ({ visible, title, multi = false, initial = [], onClose
             </Pressable>
           </View>
         )}
+
+        {/* manual add overlay */}
+       <Modal
+         visible={manualOpen}
+         transparent
+         animationType="fade"
+         onRequestClose={() => setManualOpen(false)}
+       >
+         <KeyboardAvoidingView
+           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+           style={{
+             flex: 1,
+             justifyContent: 'center',
+             alignItems: 'center',
+             paddingHorizontal: 20,
+             backgroundColor: 'rgba(0,0,0,0.6)',
+           }}
+         >
+           <View className="w-full p-5 bg-white rounded-3xl">
+              <Text className="text-lg font-extrabold text-slate-900">Add location manually</Text>
+
+              <Text className="mt-4 mb-1.5 text-xs font-semibold text-slate-500">Location name</Text>
+              <TextInput
+                value={mName}
+                onChangeText={(v) => { setMName(v); setMErr(''); }}
+                placeholder="e.g. Wakad Chowk, Pune"
+                placeholderTextColor="#94A3B8"
+                className="px-3 py-3 border rounded-xl border-slate-300 text-slate-900"
+              />
+
+              {needKm && (
+                <>
+                  <Text className="mt-3 mb-1.5 text-xs font-semibold text-slate-500">
+                    Distance from previous point (km)
+                  </Text>
+                  <TextInput
+                    value={mKm}
+                    onChangeText={(v) => { setMKm(v); setMErr(''); }}
+                    placeholder="e.g. 8.7"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="decimal-pad"
+                    className="px-3 py-3 border rounded-xl border-slate-300 text-slate-900"
+                  />
+                </>
+              )}
+
+              {mErr ? <Text className="mt-2 text-xs text-red-500">{mErr}</Text> : null}
+
+              <View className="flex-row mt-5">
+                <Pressable
+                  onPress={() => setManualOpen(false)}
+                  className="items-center flex-1 py-3.5 mr-2 border rounded-2xl border-slate-300"
+                >
+                  <Text className="font-bold text-slate-600">Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={submitManual}
+                  className="items-center flex-1 py-3.5 ml-2 rounded-2xl bg-primary active:bg-primary-dark"
+                >
+                  <Text className="font-bold text-white">Submit</Text>
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </SafeAreaView>
     </Modal>
   );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,7 +8,9 @@ import PlaceSearchModal from '../../components/PlaceSearchModal';
 import TripDetailsModal from '../../components/TripDetailsModal';
 import NotificationsModal from '../../components/NotificationsModal';
 import ConfirmModal from '../../components/ConfirmModal';
+import DistanceModal from '../../components/DistanceModal';
 import { useTrips } from '../../context/TripContext';
+import { calcLegs } from '../../services/routeService';
 import { NOTIFICATIONS } from '../../data/dummy';
 
 // ---------- dummy data ----------
@@ -21,7 +23,7 @@ const STATS = [
 ];
 
 const shadow = {
-  elevation: 2,
+  elevation: 4,
   shadowColor: '#000',
   shadowOpacity: 0.08,
   shadowRadius: 8,
@@ -64,14 +66,15 @@ const Dashboard = () => {
   const [destination, setDestination] = useState(null);
   const [drops, setDrops] = useState([]);
   const [modal, setModal] = useState(null); // 'source' | 'destination' | 'drops'
-  const [sheet, setSheet] = useState(null); // 'start' | 'cancel'
+  const [sheet, setSheet] = useState(null); // 'distance' | 'start' | 'cancel'
+  const [plan, setPlan] = useState(null); // { points, legs }
+  const [calculating, setCalculating] = useState(false);
   const [detailsTrip, setDetailsTrip] = useState(null);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState(NOTIFICATIONS);
 
   const unread = notifs.filter((n) => !n.read).length;
   const canStart = !!source && (!!destination || drops.length > 0);
-  const finalDrop = destination || drops[drops.length - 1];
 
   const confirm = (list) => {
     if (modal === 'source') setSource(list[0]);
@@ -80,19 +83,30 @@ const Dashboard = () => {
     setModal(null);
   };
 
-  const onStartPress = () => {
+  const onStartPress = async () => {
     if (LIVE_TRIP) {
       Alert.alert('Trip already live', 'Complete or cancel your current trip before starting a new one.');
       return;
     }
+    const points = [source, ...drops, ...(destination ? [destination] : [])];
+    setCalculating(true);
+    const legs = await calcLegs(points);
+    setCalculating(false);
+    setPlan({ points, legs });
+    setSheet(legs.some((l) => l === null) ? 'distance' : 'start');
+  };
+
+  const onDistancesSubmitted = (filled) => {
+    setPlan((p) => ({ ...p, legs: filled }));
     setSheet('start');
   };
 
   const onConfirmStart = () => {
-    startTrip({ source, destination, drops });
+    startTrip({ points: plan.points, legs: plan.legs });
     setSource(null);
     setDestination(null);
     setDrops([]);
+    setPlan(null);
     setSheet(null);
   };
 
@@ -100,6 +114,17 @@ const Dashboard = () => {
     cancelTrip();
     setSheet(null);
   };
+
+  // route summary shown in the "Start this trip?" overlay
+  const routeSummary = (() => {
+    if (!plan || !plan.legs.every(Boolean)) return '';
+    const lines = plan.points.slice(1).map((p, i) => {
+      const l = plan.legs[i];
+      return `${plan.points[i].name} → ${p.name}: ${l.km} km${l.src === 'manual' ? ' (manual)' : ''}`;
+    });
+    const total = Math.round(plan.legs.reduce((a, l) => a + l.km, 0) * 10) / 10;
+    return `${lines.join('\n')}\n\nTotal: ${total} km\nCheck every distance before you start.`;
+  })();
 
   return (
     <View className="flex-1 bg-slate-50">
@@ -146,31 +171,31 @@ const Dashboard = () => {
             onPress={() => setModal('source')}
           />
 
-           {drops.length > 0 ? (
-             <View className="py-3 pl-6 my-1 border-l-2 border-dashed ml-[22px] border-primary/50">
-               {drops.map((d, i) => (
-                 <View key={d.id} className="flex-row items-center py-1.5">
-                   <View className="w-2 h-2 mr-2 rounded-full bg-primary" />
-                   <Text className="flex-1 text-xs font-medium text-slate-700" numberOfLines={1}>
-                     Drop {i + 1} · {d.name}
-                   </Text>
-                 </View>
-               ))}
-             </View>
-           ) : (
-             <View className="h-10 my-1 border-l-2 border-dashed ml-[20px] border-primary/50" />
-           )}
+          {drops.length > 0 ? (
+            <View className="py-3 pl-6 my-1 border-l-2 border-dashed ml-[22px] border-primary/50">
+              {drops.map((d, i) => (
+                <View key={d.id} className="flex-row items-center py-1.5">
+                  <View className="w-2 h-2 mr-2 rounded-full bg-primary" />
+                  <Text className="flex-1 text-xs font-medium text-slate-700" numberOfLines={1}>
+                    Drop {i + 1} · {d.name}{d.manual ? ` · ${d.km} km` : ''}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View className="h-10 my-1 border-l-2 border-dashed ml-[22px] border-primary/50" />
+          )}
 
           <LocationField
             dotColor="#AF1D5A"
             placeholder="End drop (destination)"
-            value={destination?.name}
+            value={destination ? `${destination.name}${destination.manual ? ` · ${destination.km} km` : ''}` : ''}
             onPress={() => setModal('destination')}
           />
 
           <Pressable
             onPress={() => setModal('drops')}
-            className="flex-row items-center border border-[#AF1D5A] self-start px-3 py-2 mt-3 rounded-full bg-primary/10 active:bg-primary/20"
+            className="flex-row items-center self-start px-3 py-2 mt-3 rounded-full bg-primary/10 active:bg-primary/20"
           >
             <MaterialCommunityIcons name="map-marker-plus" size={18} color="#AF1D5A" />
             <Text className="ml-1.5 text-sm font-semibold text-primary">
@@ -179,7 +204,7 @@ const Dashboard = () => {
           </Pressable>
 
           <Pressable
-            disabled={!canStart}
+            disabled={!canStart || calculating}
             onPress={onStartPress}
             className={`mt-4 flex-row items-center justify-center rounded-2xl py-4 ${
               canStart ? 'bg-primary active:bg-primary-dark' : 'bg-slate-200'
@@ -196,7 +221,7 @@ const Dashboard = () => {
         <View className="flex-row items-center justify-between px-5 mt-6 mb-2">
           <Text className="text-lg font-bold text-slate-900">Live trip</Text>
           {LIVE_TRIP && (
-            <View className="flex-row items-center border border-green-700 bg-green-100 rounded-full px-2.5 py-1">
+            <View className="flex-row items-center bg-green-100 rounded-full px-2.5 py-1">
               <View className="w-2 h-2 rounded-full bg-green-600 mr-1.5" />
               <Text className="text-xs font-semibold text-green-700">In transit</Text>
             </View>
@@ -215,24 +240,24 @@ const Dashboard = () => {
               <View className="h-2 rounded-full bg-primary" style={{ width: `${LIVE_TRIP.progress * 100}%` }} />
             </View>
             <Text className="mt-2 text-xs text-slate-500">
-              {LIVE_TRIP.stops.filter((s) => s.done).length}/{LIVE_TRIP.stops.length} points confirmed
+              {LIVE_TRIP.stops.filter((s) => s.done).length}/{LIVE_TRIP.stops.length} points confirmed · {LIVE_TRIP.distanceKm} km
             </Text>
 
-                        <View className="flex-row items-center justify-between mt-3">
-                          <Text className="text-xs text-slate-500">{LIVE_TRIP.startedAt}</Text>
-                          <Pressable onPress={() => setSheet('cancel')} className="flex-row items-center active:opacity-60 px-2 py-1 border border-red-300 rounded-lg">
-                            <MaterialCommunityIcons name="close-circle-outline" size={16} color="#DC2626" />
-                            <Text className="ml-1 text-sm font-semibold text-red-600">Cancel trip</Text>
-                          </Pressable>
-                        </View>
+            <View className="flex-row items-center justify-between mt-3">
+              <Text className="text-xs text-slate-500">{LIVE_TRIP.startedAt}</Text>
+              <Pressable onPress={() => setSheet('cancel')} className="flex-row items-center active:opacity-60">
+                <MaterialCommunityIcons name="close-circle-outline" size={16} color="#DC2626" />
+                <Text className="ml-1 text-sm font-semibold text-red-600">Cancel trip</Text>
+              </Pressable>
+            </View>
 
-                        <Pressable
-                          onPress={() => setDetailsTrip(LIVE_TRIP)}
-                          className="flex-row items-center justify-center py-3.5 mt-3 rounded-2xl bg-primary active:bg-primary-dark"
-                        >
-                          <MaterialCommunityIcons name="map-marker-path" size={20} color="#fff" />
-                          <Text className="ml-2 text-base font-bold text-white">View trip details</Text>
-                        </Pressable>
+            <Pressable
+              onPress={() => setDetailsTrip(LIVE_TRIP)}
+              className="flex-row items-center justify-center py-3.5 mt-3 rounded-2xl bg-primary active:bg-primary-dark"
+            >
+              <MaterialCommunityIcons name="map-marker-path" size={20} color="#fff" />
+              <Text className="ml-2 text-base font-bold text-white">View trip details</Text>
+            </Pressable>
           </View>
         ) : (
           <View className="items-center p-6 mx-4 bg-white border border-dashed border-slate-300 rounded-3xl">
@@ -253,7 +278,7 @@ const Dashboard = () => {
           <Pressable
             key={t.id}
             onPress={() => setDetailsTrip(t)}
-            className="flex-row items-center p-3 mx-4 mb-3 bg-white border border-[#9e084757] rounded-2xl active:bg-slate-50"
+            className="flex-row items-center p-3 mx-4 mb-3 bg-white border border-slate-200 rounded-2xl active:bg-slate-50"
             style={shadow}
           >
             <View className="items-center justify-center mr-3 w-11 h-11 rounded-xl bg-primary/10">
@@ -271,13 +296,28 @@ const Dashboard = () => {
       {/* overlays */}
       <TripDetailsModal trip={resolveTrip(detailsTrip)} onClose={() => setDetailsTrip(null)} />
 
+      <Modal visible={calculating} transparent animationType="fade" onRequestClose={() => {}}>
+        <View className="items-center justify-center flex-1 bg-black/50">
+          <View className="items-center px-8 py-6 bg-white rounded-3xl">
+            <ActivityIndicator size="large" color="#AF1D5A" />
+            <Text className="mt-3 font-semibold text-slate-800">Calculating route distance…</Text>
+          </View>
+        </View>
+      </Modal>
+
+      <DistanceModal
+        visible={sheet === 'distance'}
+        points={plan?.points || []}
+        legs={plan?.legs || []}
+        onSubmit={onDistancesSubmitted}
+        onCancel={() => setSheet(null)}
+      />
+
       <ConfirmModal
         visible={sheet === 'start'}
         icon="play-circle"
         title="Start this trip?"
-        message={`${source?.name || ''} → ${finalDrop?.name || ''}${
-          drops.length ? ` (${drops.length} drops)` : ''
-        }\nMake sure the route is correct before you start.`}
+        message={routeSummary}
         confirmText="Yes, start"
         cancelText="No"
         onConfirm={onConfirmStart}
@@ -305,6 +345,7 @@ const Dashboard = () => {
       <PlaceSearchModal
         visible={modal !== null}
         multi={modal === 'drops'}
+        needKm={modal !== 'source'}
         initial={modal === 'drops' ? drops : []}
         title={
           modal === 'source' ? 'Select source'

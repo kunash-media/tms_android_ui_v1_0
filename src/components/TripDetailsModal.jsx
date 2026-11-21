@@ -22,12 +22,14 @@ const Chip = ({ icon, text }) => (
   </View>
 );
 
-const openMap = (s) =>
-  Linking.openURL(
-    s.lat != null
-      ? `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.name} ${s.area}`)}`
-  );
+const placeRef = (s) => (s.lat != null ? `${s.lat},${s.lng}` : `${s.name} ${s.area}`);
+
+// origin = the trip's selected source; origin null -> Google Maps uses current location
+const openDirections = (origin, dest) => {
+  let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(placeRef(dest))}&travelmode=driving`;
+  if (origin) url += `&origin=${encodeURIComponent(placeRef(origin))}`;
+  Linking.openURL(url);
+};
 
 const TripDetailsModal = ({ trip, onClose }) => {
   const { active, markStopDone } = useTrips();
@@ -152,7 +154,7 @@ const TripDetailsModal = ({ trip, onClose }) => {
                             </Pressable>
                           )}
                           <Pressable
-                            onPress={() => openMap(s)}
+                            onPress={() => openDirections(i === 0 ? null : stops[0], s)}
                             className="p-2 rounded-full bg-primary/10 active:bg-primary/20"
                           >
                             <MaterialCommunityIcons name="navigation-variant" size={18} color="#AF1D5A" />
@@ -164,7 +166,9 @@ const TripDetailsModal = ({ trip, onClose }) => {
                         {i > 0 && (
                           <View className="flex-row items-center mr-3">
                             <MaterialCommunityIcons name="road-variant" size={14} color="#64748B" />
-                            <Text className="ml-1 text-xs text-slate-600">+{s.km} km</Text>
+                            <Text className="ml-1 text-xs text-slate-600">
+                              +{s.km} km{s.kmSource === 'manual' ? ' (manual)' : ''}
+                            </Text>
                           </View>
                         )}
                         <View className="flex-row items-center">
