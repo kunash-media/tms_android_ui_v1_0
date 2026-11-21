@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
 import TripDetailsModal from '../../components/TripDetailsModal';
-import { HISTORY_TRIPS } from '../../data/dummy';
+import { useTrips } from '../../context/TripContext';
 
 const FILTERS = ['All', 'Completed', 'Cancelled'];
 const PILL = {
@@ -19,7 +19,9 @@ const Meta = ({ icon, text }) => (
 );
 
 const History = () => {
+
   const [filter, setFilter] = useState('All');
+  const { history: HISTORY_TRIPS } = useTrips();
   const [selected, setSelected] = useState(null);
 
   const list = HISTORY_TRIPS.filter((t) => filter === 'All' || t.status === filter);

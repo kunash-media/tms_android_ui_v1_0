@@ -1,0 +1,113 @@
+import { createContext, useContext, useState } from 'react';
+import { LIVE_TRIP, UPCOMING_TRIPS, HISTORY_TRIPS } from '../data/dummy';
+
+const TripContext = createContext(null);
+export const useTrips = () => useContext(TripContext);
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const pad = (n) => String(n).padStart(2, '0');
+const fmtDate = (d) => `${pad(d.getDate())} ${MONTHS[d.getMonth()]}`;
+const fmtTime = (d) => {
+  let h = d.getHours();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${pad(h)}:${pad(d.getMinutes())} ${ap}`;
+};
+
+// approximate road km = straight line x 1.25
+const kmBetween = (a, b) => {
+  if (a?.lat == null || b?.lat == null) return 0;
+  const rad = (x) => (x * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * 6371 * Math.asin(Math.sqrt(h)) * 1.25);
+};
+
+const toHistory = (trip, status) => {
+  let duration = '—';
+  if (status === 'Completed' && trip.startedMs) {
+    const mins = Math.round((Date.now() - trip.startedMs) / 60000);
+    duration = `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+  return {
+    id: trip.id,
+    status,
+    from: trip.source,
+    to: trip.destination,
+    date: trip.startedAt,
+    distanceKm: trip.distanceKm,
+    duration,
+    stops: trip.stops,
+  };
+};
+
+export const TripProvider = ({ children }) => {
+  const [active, setActive] = useState(LIVE_TRIP);
+  const [upcoming] = useState(UPCOMING_TRIPS);
+  const [history, setHistory] = useState(HISTORY_TRIPS);
+
+  const startTrip = ({ source, destination, drops }) => {
+    const now = new Date();
+    const points = [source, ...drops, ...(destination ? [destination] : [])];
+    const stops = points.map((p, i) => ({
+      name: p.name,
+      area: p.address || '',
+      km: i === 0 ? 0 : kmBetween(points[i - 1], p),
+      date: fmtDate(now),
+      time: '',
+      done: false,
+      proofUri: null,
+      lat: p.lat,
+      lng: p.lng,
+    }));
+    setActive({
+      id: `TR-${Date.now() % 100000}`,
+      status: 'In transit',
+      source: stops[0].name,
+      destination: stops[stops.length - 1].name,
+      startedAt: `${fmtDate(now)} · ${fmtTime(now)}`,
+      startedMs: now.getTime(),
+      progress: 0,
+      distanceKm: stops.reduce((a, s) => a + s.km, 0),
+      stops,
+    });
+  };
+
+  const markStopDone = (tripId, index, uri) => {
+    if (!active || active.id !== tripId) return;
+    const now = new Date();
+    const stops = active.stops.map((s, i) =>
+      i === index ? { ...s, done: true, proofUri: uri, date: fmtDate(now), time: fmtTime(now) } : s
+    );
+    const doneCount = stops.filter((s) => s.done).length;
+    const next = { ...active, stops, progress: doneCount / stops.length };
+    if (doneCount === stops.length) {
+      setHistory((h) => [toHistory(next, 'Completed'), ...h]);
+      setActive(null);
+    } else {
+      setActive(next);
+    }
+  };
+
+  const cancelTrip = () => {
+    if (!active) return;
+    setHistory((h) => [toHistory(active, 'Cancelled'), ...h]);
+    setActive(null);
+  };
+
+  // always return the freshest copy of a trip (live state changes after uploads)
+  const resolveTrip = (t) => {
+    if (!t) return null;
+    if (active?.id === t.id) return active;
+    return history.find((x) => x.id === t.id) || upcoming.find((x) => x.id === t.id) || t;
+  };
+
+  return (
+    <TripContext.Provider
+      value={{ active, upcoming, history, startTrip, markStopDone, cancelTrip, resolveTrip }}
+    >
+      {children}
+    </TripContext.Provider>
+  );
+};

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
 import TripDetailsModal from '../../components/TripDetailsModal';
-import { LIVE_TRIP, UPCOMING_TRIPS } from '../../data/dummy';
+import { useTrips } from '../../context/TripContext';
 
 const RouteList = ({ stops }) => (
   <View>
@@ -31,38 +31,47 @@ const RouteList = ({ stops }) => (
 
 const Trips = () => {
   const [selected, setSelected] = useState(null);
+  const { active: LIVE_TRIP, upcoming: UPCOMING_TRIPS, resolveTrip } = useTrips();
 
   return (
     <View className="flex-1 bg-slate-50">
-      <ScreenHeader title="My Trips" subtitle={`1 live · ${UPCOMING_TRIPS.length} upcoming`} />
+      <ScreenHeader title="My Trips" subtitle={`${LIVE_TRIP ? 1 : 0} live · ${UPCOMING_TRIPS.length} upcoming`} />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         {/* live */}
         <Text className="mb-2 text-lg font-bold text-slate-900">Live trip</Text>
-        <Pressable
-          onPress={() => setSelected(LIVE_TRIP)}
-          className="p-4 mb-6 bg-white border rounded-3xl border-primary/40 active:bg-slate-50"
-        >
-          <View className="flex-row items-center justify-between">
-            <Text className="text-xs font-semibold text-slate-500">{LIVE_TRIP.id}</Text>
-            <View className="flex-row items-center px-2.5 py-1 bg-green-100 rounded-full">
-              <View className="w-2 h-2 mr-1.5 bg-green-600 rounded-full" />
-              <Text className="text-xs font-semibold text-green-700">{LIVE_TRIP.status}</Text>
+        {LIVE_TRIP ? (
+          <Pressable
+            onPress={() => setSelected(LIVE_TRIP)}
+            className="p-4 mb-6 bg-white border rounded-3xl border-primary/40 active:bg-slate-50"
+          >
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xs font-semibold text-slate-500">{LIVE_TRIP.id}</Text>
+              <View className="flex-row items-center px-2.5 py-1 bg-green-100 rounded-full">
+                <View className="w-2 h-2 mr-1.5 bg-green-600 rounded-full" />
+                <Text className="text-xs font-semibold text-green-700">{LIVE_TRIP.status}</Text>
+              </View>
             </View>
+            <View className="flex-row items-center mt-2">
+              <Text className="flex-1 font-bold text-slate-900" numberOfLines={1}>{LIVE_TRIP.source}</Text>
+              <MaterialCommunityIcons name="arrow-right-thin" size={26} color="#AF1D5A" />
+              <Text className="flex-1 font-bold text-right text-slate-900" numberOfLines={1}>{LIVE_TRIP.destination}</Text>
+            </View>
+            <View className="h-2 mt-3 overflow-hidden rounded-full bg-slate-100">
+              <View className="h-2 rounded-full bg-primary" style={{ width: `${LIVE_TRIP.progress * 100}%` }} />
+            </View>
+            <View className="flex-row items-center justify-between mt-3">
+              <Text className="text-xs text-slate-500">
+                {LIVE_TRIP.distanceKm} km · {LIVE_TRIP.stops.filter((s) => s.done).length}/{LIVE_TRIP.stops.length} points confirmed
+              </Text>
+              <Text className="text-sm font-semibold text-primary">View route ›</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View className="items-center p-6 mb-6 bg-white border border-dashed border-slate-300 rounded-3xl">
+            <Text className="font-semibold text-slate-500">No live trip</Text>
           </View>
-          <View className="flex-row items-center mt-2">
-            <Text className="flex-1 font-bold text-slate-900" numberOfLines={1}>{LIVE_TRIP.source}</Text>
-            <MaterialCommunityIcons name="arrow-right-thin" size={26} color="#AF1D5A" />
-            <Text className="flex-1 font-bold text-right text-slate-900" numberOfLines={1}>{LIVE_TRIP.destination}</Text>
-          </View>
-          <View className="h-2 mt-3 overflow-hidden rounded-full bg-slate-100">
-            <View className="h-2 rounded-full bg-primary" style={{ width: `${LIVE_TRIP.progress * 100}%` }} />
-          </View>
-          <View className="flex-row items-center justify-between mt-3">
-            <Text className="text-xs text-slate-500">{LIVE_TRIP.distanceKm} km · {Math.round(LIVE_TRIP.progress * 100)}% done</Text>
-            <Text className="text-sm font-semibold text-primary">View route ›</Text>
-          </View>
-        </Pressable>
+        )}
 
         {/* upcoming */}
         <Text className="mb-2 text-lg font-bold text-slate-900">Upcoming trips</Text>
@@ -104,7 +113,7 @@ const Trips = () => {
         ))}
       </ScrollView>
 
-      <TripDetailsModal trip={selected} onClose={() => setSelected(null)} />
+      <TripDetailsModal trip={resolveTrip(selected)} onClose={() => setSelected(null)} />
     </View>
   );
 };

@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Dashboard from './src/screens/Dashboard/Dashboard.jsx';
+import { TripProvider } from './src/context/TripContext';
 import Trips from './src/screens/Trips/Trips.jsx';
 import History from './src/screens/History/History.jsx';
 import Profile from './src/screens/Profile/Profile.jsx';
@@ -55,10 +56,12 @@ function Tabs() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="light" />
-        <Tabs />
-      </NavigationContainer>
+      <TripProvider>
+          <NavigationContainer>
+            <StatusBar style="light" />
+            <Tabs />
+          </NavigationContainer>
+      </TripProvider>
     </SafeAreaProvider>
   );
 }
