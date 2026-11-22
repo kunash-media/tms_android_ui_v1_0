@@ -1,4 +1,5 @@
-import { FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { FlatList, Modal, Text, View } from 'react-native';
+import Pressable from './Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 

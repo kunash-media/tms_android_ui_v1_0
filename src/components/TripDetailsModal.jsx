@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Linking, Modal, Pressable, ScrollView,
+  ActivityIndicator, Alert, Image, Linking, Modal, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
+import Pressable from './Pressable';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTrips } from '../context/TripContext';
@@ -80,8 +81,8 @@ const TripDetailsModal = ({ trip, onClose }) => {
 
   return (
     <Modal visible={!!trip} transparent animationType="slide" onRequestClose={close}>
-      <Pressable className="justify-end flex-1 bg-black/50" onPress={close}>
-        <Pressable className="bg-white rounded-t-3xl max-h-[88%]" onPress={() => {}}>
+       <Pressable plain className="justify-end flex-1 bg-black/50" onPress={close}>
+         <Pressable plain className="bg-white rounded-t-3xl max-h-[88%]" onPress={() => {}}>
           <View className="self-center w-12 h-1.5 mt-3 rounded-full bg-slate-300" />
 
           {/* header */}

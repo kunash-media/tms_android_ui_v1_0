@@ -1,5 +1,6 @@
 import "./global.css";
 import { StatusBar } from 'expo-status-bar';
+import { Pressable } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,6 +26,12 @@ function Tabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarButton: (props) => (
+          <Pressable
+            {...props}
+            android_ripple={{ color: 'rgba(175,29,90,0.08)', borderless: false }}
+          />
+        ),
         tabBarActiveTintColor: '#AF1D5A',
         tabBarInactiveTintColor: '#94A3B8',
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginBottom: 4 },

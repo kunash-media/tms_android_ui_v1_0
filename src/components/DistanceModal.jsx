@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Modal, ScrollView, Text, TextInput, View } from 'react-native';
+import Pressable from './Pressable';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const DistanceModal = ({ visible, points, legs, onSubmit, onCancel }) => {

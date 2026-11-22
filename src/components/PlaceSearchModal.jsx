@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View,
+  ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Text, TextInput, View,
 } from 'react-native';
+import Pressable from './Pressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 

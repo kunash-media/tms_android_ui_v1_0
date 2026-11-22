@@ -1,4 +1,5 @@
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Text, View } from 'react-native';
+import Pressable from './Pressable';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const ConfirmModal = ({

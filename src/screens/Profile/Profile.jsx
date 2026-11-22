@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View,
+  KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View,
 } from 'react-native';
+import Pressable from '../../components/Pressable';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PROFILE } from '../../data/dummy';
