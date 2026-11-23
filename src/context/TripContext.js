@@ -66,8 +66,9 @@ export const TripProvider = ({ children }) => {
     });
   };
 
+  // receipts are accepted only while the trip is running
   const markStopDone = (tripId, index, uri) => {
-    if (!active || active.id !== tripId) return;
+    if (!active || active.id !== tripId || active.status !== 'In transit') return;
     const now = new Date();
     const stops = active.stops.map((s, i) =>
       i === index ? { ...s, done: true, proofUri: uri, date: fmtDate(now), time: fmtTime(now) } : s
@@ -88,6 +89,26 @@ export const TripProvider = ({ children }) => {
     setActive(null);
   };
 
+  // leave: pause the running trip, confirmed points are kept
+  const leaveTrip = () =>
+    setActive((t) => (t && t.status === 'In transit' ? { ...t, status: 'Paused' } : t));
+
+  // resume: continue from the first unconfirmed point
+  const resumeTrip = () =>
+    setActive((t) => (t && t.status === 'Paused' ? { ...t, status: 'In transit' } : t));
+
+  // forward: hand the paused trip to another driver (read-only here until admin reverts)
+  const forwardTrip = (driver) =>
+    setActive((t) =>
+      t && t.status === 'Paused' ? { ...t, status: 'Forwarded', forwardedTo: driver } : t
+    );
+
+  // demo only: admin gives the trip back to this driver
+  const revertTrip = () =>
+    setActive((t) =>
+      t && t.status === 'Forwarded' ? { ...t, status: 'In transit', forwardedTo: null } : t
+    );
+
   // always return the freshest copy of a trip (live state changes after uploads)
   const resolveTrip = (t) => {
     if (!t) return null;
@@ -97,7 +118,19 @@ export const TripProvider = ({ children }) => {
 
   return (
     <TripContext.Provider
-      value={{ active, upcoming, history, startTrip, markStopDone, cancelTrip, resolveTrip }}
+      value={{
+        active,
+        upcoming,
+        history,
+        startTrip,
+        markStopDone,
+        cancelTrip,
+        resolveTrip,
+        leaveTrip,
+        resumeTrip,
+        forwardTrip,
+        revertTrip,
+      }}
     >
       {children}
     </TripContext.Provider>

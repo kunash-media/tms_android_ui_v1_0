@@ -107,3 +107,12 @@ export const NOTIFICATIONS = [
   { id: 4, type: 'trip', title: 'Trip completed', body: 'TR-1038 Pune → Mumbai marked as completed.', time: '18 Nov', read: true },
   { id: 5, type: 'info', title: 'Vehicle service due', body: 'Next service due in 500 km.', time: '16 Nov', read: true },
 ];
+
+
+export const DRIVERS = [
+  { id: 'D-201', name: 'Amit Deshmukh', vehicle: 'Tata 407', area: 'Pune' },
+  { id: 'D-202', name: 'Suresh Jadhav', vehicle: 'Ashok Leyland Dost', area: 'Pimpri' },
+  { id: 'D-203', name: 'Imran Shaikh', vehicle: 'Eicher Pro 2049', area: 'Hadapsar' },
+  { id: 'D-204', name: 'Vikas More', vehicle: 'Mahindra Bolero Pickup', area: 'Wakad' },
+  { id: 'D-205', name: 'Prakash Kale', vehicle: 'Tata Ace', area: 'Kothrud' },
+];

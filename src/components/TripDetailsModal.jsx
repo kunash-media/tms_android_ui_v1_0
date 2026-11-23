@@ -12,6 +12,8 @@ import { uploadProof } from '../services/proofService';
 const PILL = {
   'In transit': ['bg-green-100', 'text-green-700'],
   Scheduled: ['bg-amber-100', 'text-amber-700'],
+  Paused: ['bg-amber-100', 'text-amber-700'],
+  Forwarded: ['bg-slate-100', 'text-slate-700'],
   Completed: ['bg-green-100', 'text-green-700'],
   Cancelled: ['bg-red-100', 'text-red-700'],
 };
@@ -38,7 +40,7 @@ const TripDetailsModal = ({ trip, onClose }) => {
   const [uploading, setUploading] = useState(false);
 
   const stops = trip?.stops || [];
-  const live = !!trip && active?.id === trip.id;
+  const live = !!trip && active?.id === trip.id && active?.status === 'In transit';
   const nextIndex = stops.findIndex((s) => !s.done);
   const doneCount = stops.filter((s) => s.done).length;
   const from = trip?.source ?? trip?.from;
@@ -103,6 +105,16 @@ const TripDetailsModal = ({ trip, onClose }) => {
               <Chip icon="source-fork" text={`${Math.max(stops.length - 2, 0)} drops`} />
               <Chip icon="calendar-clock" text={when} />
             </View>
+            {trip?.status === 'Paused' && (
+                  <Text className="mb-1 text-xs font-semibold text-amber-700">
+                    Trip paused · resume it to upload receipts
+                  </Text>
+                )}
+            {trip?.status === 'Forwarded' && (
+              <Text className="mb-1 text-xs font-semibold text-slate-600">
+                Forwarded to {trip.forwardedTo?.name} · read-only until admin reverts
+              </Text>
+            )}
             {live && (
               <Text className="mb-1 text-xs font-semibold text-primary">
                 {doneCount}/{stops.length} points confirmed · upload a receipt photo at each point

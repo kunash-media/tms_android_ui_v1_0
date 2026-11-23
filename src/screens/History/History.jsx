@@ -32,13 +32,13 @@ const History = () => {
     <View className="flex-1 bg-slate-50">
       <ScreenHeader title="History" subtitle="Your past trips">
         <View className="flex-row mt-4">
-          <View className="flex-1 p-3 mr-2 rounded-2xl bg-white/15">
+          <View className="border border-[#F2DACE] flex-1 p-3 mr-2 rounded-2xl bg-white/15">
             <Text className="text-2xl font-extrabold text-white">{done.length}</Text>
-            <Text className="text-xs text-white/80">Completed trips</Text>
+            <Text className="text-xs text-white">Completed trips</Text>
           </View>
-          <View className="flex-1 p-3 ml-2 rounded-2xl bg-white/15">
+          <View className="border border-[#F2DACE] flex-1 p-3 ml-2 rounded-2xl bg-white/15">
             <Text className="text-2xl font-extrabold text-white">{totalKm}</Text>
-            <Text className="text-xs text-white/80">Total km</Text>
+            <Text className="text-xs text-white">Total km</Text>
           </View>
         </View>
       </ScreenHeader>
@@ -50,7 +50,7 @@ const History = () => {
             key={f}
             onPress={() => setFilter(f)}
             className={`px-4 py-2 mr-2 border rounded-full ${
-              filter === f ? 'bg-primary border-primary' : 'bg-white border-slate-200'
+              filter === f ? 'bg-primary border-primary' : 'bg-white border border-[#9e084757]'
             }`}
           >
             <Text className={`text-sm font-semibold ${filter === f ? 'text-white' : 'text-slate-600'}`}>{f}</Text>
@@ -66,7 +66,7 @@ const History = () => {
             <Pressable
               key={t.id}
               onPress={() => setSelected(t)}
-              className="p-4 mb-3 bg-white border rounded-2xl border-slate-200 active:bg-slate-50"
+              className="p-4 mb-3 bg-white  rounded-2xl border border-[#9e084757] active:bg-slate-50"
             >
               <View className="flex-row items-center justify-between">
                 <Text className="text-xs font-semibold text-slate-500">{t.id}</Text>
@@ -75,11 +75,11 @@ const History = () => {
                 </View>
               </View>
               <View className="flex-row items-center mt-2">
-                <Text className="flex-1 text-base font-bold text-slate-900" numberOfLines={1}>{t.from}</Text>
+                <Text className="flex-1 text-xl font-bold text-slate-900" numberOfLines={1}>{t.from}</Text>
                 <MaterialCommunityIcons name="arrow-right-thin" size={24} color="#AF1D5A" />
-                <Text className="flex-1 text-base font-bold text-right text-slate-900" numberOfLines={1}>{t.to}</Text>
+                <Text className="flex-1 text-xl font-bold text-right text-slate-900" numberOfLines={1}>{t.to}</Text>
               </View>
-              <View className="flex-row flex-wrap pt-3 mt-3 border-t border-slate-100">
+              <View className="flex-row flex-wrap pt-3 mt-3 border-t border-slate-400">
                 <Meta icon="calendar-clock" text={t.date} />
                 <Meta icon="road-variant" text={`${t.distanceKm} km`} />
                 <Meta icon="timer-outline" text={t.duration} />

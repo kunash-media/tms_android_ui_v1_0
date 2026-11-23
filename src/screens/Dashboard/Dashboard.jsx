@@ -10,6 +10,8 @@ import TripDetailsModal from '../../components/TripDetailsModal';
 import NotificationsModal from '../../components/NotificationsModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import DistanceModal from '../../components/DistanceModal';
+import AssignDriverModal from '../../components/AssignDriverModal';
+import { STATUS_UI } from '../../utils/tripStatus';
 import { useTrips } from '../../context/TripContext';
 import { calcLegs } from '../../services/routeService';
 import { NOTIFICATIONS } from '../../data/dummy';
@@ -61,7 +63,10 @@ const LocationField = ({ dotColor, placeholder, value, onPress }) => (
 // ---------- screen ----------
 const Dashboard = () => {
   const navigation = useNavigation();
-  const { active: LIVE_TRIP, upcoming: UPCOMING, startTrip, cancelTrip, resolveTrip } = useTrips();
+  const {
+    active: LIVE_TRIP, upcoming: UPCOMING, startTrip, cancelTrip, resolveTrip,
+    leaveTrip, resumeTrip, forwardTrip, revertTrip,
+  } = useTrips();
 
   const [source, setSource] = useState(null);
   const [destination, setDestination] = useState(null);
@@ -74,7 +79,24 @@ const Dashboard = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState(NOTIFICATIONS);
 
-  const unread = notifs.filter((n) => !n.read).length;
+    const [assignOpen, setAssignOpen] = useState(false);
+    const unread = notifs.filter((n) => !n.read).length;
+    const nextStop = LIVE_TRIP?.stops.find((s) => !s.done);
+
+    const onConfirmLeave = () => {
+      leaveTrip();
+      setSheet(null);
+    };
+
+      const onConfirmResume = () => {
+        resumeTrip();
+        setSheet(null);
+      };
+
+      const onAssign = (driver) => {
+      forwardTrip(driver);
+      setAssignOpen(false);
+    };
   const canStart = !!source && (!!destination || drops.length > 0);
 
   const confirm = (list) => {
@@ -196,7 +218,7 @@ const Dashboard = () => {
 
           <Pressable
             onPress={() => setModal('drops')}
-            className="flex-row items-center self-start px-3 py-2 mt-3 rounded-full bg-primary/10 active:bg-primary/20"
+            className="border border-[#9e084757] flex-row items-center self-start px-3 py-2 mt-3 rounded-full bg-primary/10 active:bg-primary/20"
           >
             <MaterialCommunityIcons name="map-marker-plus" size={18} color="#AF1D5A" />
             <Text className="ml-1.5 text-sm font-semibold text-primary">
@@ -221,12 +243,12 @@ const Dashboard = () => {
         {/* live trip */}
         <View className="flex-row items-center justify-between px-5 mt-6 mb-2">
           <Text className="text-lg font-bold text-slate-900">Live trip</Text>
-          {LIVE_TRIP && (
-            <View className="flex-row items-center bg-green-100 rounded-full px-2.5 py-1">
-              <View className="w-2 h-2 rounded-full bg-green-600 mr-1.5" />
-              <Text className="text-xs font-semibold text-green-700">In transit</Text>
-            </View>
-          )}
+           {LIVE_TRIP && (
+             <View className={`flex-row items-center rounded-full px-2.5 py-1 border ${STATUS_UI[LIVE_TRIP.status].box}`}>
+               <View className={`w-2 h-2 rounded-full mr-1.5 ${STATUS_UI[LIVE_TRIP.status].dot}`} />
+               <Text className={`text-xs font-semibold ${STATUS_UI[LIVE_TRIP.status].text}`}>{LIVE_TRIP.status}</Text>
+             </View>
+           )}
         </View>
 
         {LIVE_TRIP ? (
@@ -244,21 +266,98 @@ const Dashboard = () => {
               {LIVE_TRIP.stops.filter((s) => s.done).length}/{LIVE_TRIP.stops.length} points confirmed · {LIVE_TRIP.distanceKm} km
             </Text>
 
-            <View className="flex-row items-center justify-between mt-3">
-              <Text className="text-xs text-slate-500">{LIVE_TRIP.startedAt}</Text>
-              <Pressable onPress={() => setSheet('cancel')} className="flex-row items-center active:opacity-60">
-                <MaterialCommunityIcons name="close-circle-outline" size={16} color="#DC2626" />
-                <Text className="ml-1 text-sm font-semibold text-red-600">Cancel trip</Text>
-              </Pressable>
-            </View>
+            <Text className="mt-3 text-xs text-slate-500">{LIVE_TRIP.startedAt}</Text>
 
-            <Pressable
-              onPress={() => setDetailsTrip(LIVE_TRIP)}
-              className="flex-row items-center justify-center py-3.5 mt-3 rounded-2xl bg-primary active:bg-primary-dark"
-            >
-              <MaterialCommunityIcons name="map-marker-path" size={20} color="#fff" />
-              <Text className="ml-2 text-base font-bold text-white">View trip details</Text>
-            </Pressable>
+            {/* in transit: details + leave / cancel */}
+            {LIVE_TRIP.status === 'In transit' && (
+              <>
+                <Pressable
+                  onPress={() => setDetailsTrip(LIVE_TRIP)}
+                  className="flex-row items-center justify-center py-3.5 mt-3 rounded-2xl bg-primary"
+                >
+                  <MaterialCommunityIcons name="map-marker-path" size={20} color="#fff" />
+                  <Text className="ml-2 text-base font-bold text-white">View trip details</Text>
+                </Pressable>
+                <View className="flex-row mt-3">
+                  <Pressable
+                    onPress={() => setSheet('leave')}
+                    className="flex-row items-center justify-center flex-1 py-2.5 mr-2 border border-amber-400 rounded-xl bg-amber-50"
+                  >
+                    <MaterialCommunityIcons name="exit-run" size={16} color="#B45309" />
+                    <Text className="ml-1 text-sm font-semibold text-amber-700">Leave trip</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setSheet('cancel')}
+                    className="flex-row items-center justify-center flex-1 py-2.5 ml-2 border border-red-300 rounded-xl"
+                  >
+                    <MaterialCommunityIcons name="close-circle-outline" size={16} color="#DC2626" />
+                    <Text className="ml-1 text-sm font-semibold text-red-600">Cancel trip</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+
+            {/* paused: resume or assign */}
+            {LIVE_TRIP.status === 'Paused' && (
+              <>
+                <View className="p-3 mt-3 border border-amber-300 rounded-2xl bg-amber-50">
+                  <Text className="text-xs font-semibold text-amber-800">
+                    You left this trip{nextStop ? ` before ${nextStop.name}` : ''}.
+                  </Text>
+                  <Text className="mt-0.5 text-xs text-amber-700">
+                    Resume it, or assign it to another driver.
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setSheet('resume')}
+                  className="flex-row items-center justify-center py-3.5 mt-3 rounded-2xl bg-primary"
+                >
+                  <MaterialCommunityIcons name="play-circle" size={20} color="#fff" />
+                  <Text className="ml-2 text-base font-bold text-white">Resume trip</Text>
+                </Pressable>
+                <View className="flex-row mt-3">
+                  <Pressable
+                    onPress={() => setAssignOpen(true)}
+                    className="flex-row items-center justify-center flex-1 py-2.5 mr-2 border border-primary rounded-xl bg-primary/10"
+                  >
+                    <MaterialCommunityIcons name="account-switch" size={16} color="#AF1D5A" />
+                    <Text className="ml-1 text-sm font-semibold text-primary">Assign to</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setDetailsTrip(LIVE_TRIP)}
+                    className="flex-row items-center justify-center flex-1 py-2.5 ml-2 border border-slate-300 rounded-xl"
+                  >
+                    <MaterialCommunityIcons name="map-marker-path" size={16} color="#475569" />
+                    <Text className="ml-1 text-sm font-semibold text-slate-600">View details</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+
+            {/* forwarded: read-only */}
+            {LIVE_TRIP.status === 'Forwarded' && (
+              <>
+                <View className="p-3 mt-3 border rounded-2xl border-slate-300 bg-slate-50">
+                  <Text className="text-xs font-semibold text-slate-700">
+                    Forwarded to {LIVE_TRIP.forwardedTo?.name}
+                  </Text>
+                  <Text className="mt-0.5 text-xs text-slate-500">
+                    Read-only until admin reverts this trip.
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setDetailsTrip(LIVE_TRIP)}
+                  className="flex-row items-center justify-center py-3.5 mt-3 border rounded-2xl border-slate-300 bg-slate-100"
+                >
+                  <MaterialCommunityIcons name="share-variant" size={20} color="#475569" />
+                  <Text className="ml-2 text-base font-bold text-slate-600">Trip forwarded</Text>
+                </Pressable>
+                {/* DEMO ONLY: remove once the backend handles admin revert */}
+                <Pressable onPress={revertTrip} className="items-center py-2 mt-2">
+                  <Text className="text-xs text-slate-400">Demo: simulate admin revert</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         ) : (
           <View className="items-center p-6 mx-4 bg-white border border-dashed border-slate-300 rounded-3xl">
@@ -279,7 +378,7 @@ const Dashboard = () => {
           <Pressable
             key={t.id}
             onPress={() => setDetailsTrip(t)}
-            className="flex-row items-center p-3 mx-4 mb-3 bg-white border border-slate-200 rounded-2xl active:bg-slate-50"
+            className="border border-[#9e084757] flex-row items-center p-3 mx-4 mb-3 bg-white rounded-2xl active:bg-slate-50"
             style={shadow}
           >
             <View className="items-center justify-center mr-3 w-11 h-11 rounded-xl bg-primary/10">
@@ -336,7 +435,36 @@ const Dashboard = () => {
         onCancel={() => setSheet(null)}
       />
 
-      <NotificationsModal
+      <ConfirmModal
+        visible={sheet === 'resume'}
+        tone="warning"
+        icon="play-circle"
+        title="Resume this trip?"
+        message={`You will continue from ${nextStop ? nextStop.name : 'where you left off'}.`}
+        confirmText="Yes, resume"
+        cancelText="No"
+        onConfirm={onConfirmResume}
+        onCancel={() => setSheet(null)}
+      />
+     <ConfirmModal
+      visible={sheet === 'leave'}
+      tone="warning"
+      icon="exit-run"
+      title="Leave this trip?"
+      message={`The trip will be paused${nextStop ? ` before ${nextStop.name}` : ''}. You can resume it later or assign it to another driver.`}
+      confirmText="Yes, leave"
+      cancelText="No"
+      onConfirm={onConfirmLeave}
+      onCancel={() => setSheet(null)}
+    />
+
+    <AssignDriverModal
+      visible={assignOpen}
+      onClose={() => setAssignOpen(false)}
+      onAssign={onAssign}
+    />
+
+    <NotificationsModal
         visible={notifOpen}
         items={notifs}
         onChange={setNotifs}

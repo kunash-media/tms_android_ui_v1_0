@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
 import TripDetailsModal from '../../components/TripDetailsModal';
 import { useTrips } from '../../context/TripContext';
+import { STATUS_UI } from '../../utils/tripStatus';
 
 const RouteList = ({ stops }) => (
   <View>
@@ -48,10 +49,10 @@ const Trips = () => {
           >
             <View className="flex-row items-center justify-between">
               <Text className="text-xs font-semibold text-slate-500">{LIVE_TRIP.id}</Text>
-              <View className="flex-row items-center px-2.5 py-1 bg-green-100 rounded-full">
-                <View className="w-2 h-2 mr-1.5 bg-green-600 rounded-full" />
-                <Text className="text-xs font-semibold text-green-700">{LIVE_TRIP.status}</Text>
-              </View>
+            <View className={`flex-row items-center px-2.5 py-1 border rounded-full ${STATUS_UI[LIVE_TRIP.status].box}`}>
+              <View className={`w-2 h-2 mr-1.5 rounded-full ${STATUS_UI[LIVE_TRIP.status].dot}`} />
+              <Text className={`text-xs font-semibold ${STATUS_UI[LIVE_TRIP.status].text}`}>{LIVE_TRIP.status}</Text>
+            </View>
             </View>
             <View className="flex-row items-center mt-2">
               <Text className="flex-1 font-bold text-slate-900" numberOfLines={1}>{LIVE_TRIP.source}</Text>
