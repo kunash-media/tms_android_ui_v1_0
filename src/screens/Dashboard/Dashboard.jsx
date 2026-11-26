@@ -151,7 +151,7 @@ const Dashboard = () => {
 
   return (
     <View className="flex-1 bg-slate-50">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView showsVerticalScrollIndicator={false} connetentContainerStyle={{ paddingBottom: 24 }}>
         {/* header */}
         <LinearGradient colors={['#AF1D5A', '#7E1241']} style={{ paddingBottom: 56 }}>
           <SafeAreaView edges={['top']}>

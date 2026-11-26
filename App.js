@@ -1,5 +1,6 @@
 import "./global.css";
 import { StatusBar } from 'expo-status-bar';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Pressable } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,8 +11,11 @@ import { TripProvider } from './src/context/TripContext';
 import Trips from './src/screens/Trips/Trips.jsx';
 import History from './src/screens/History/History.jsx';
 import Profile from './src/screens/Profile/Profile.jsx';
+import Login from './src/screens/Login_Register/Login.jsx';
+
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 const ICONS = {
   Home: ['home', 'home-outline'],
@@ -64,10 +68,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <TripProvider>
-          <NavigationContainer>
-            <StatusBar style="light" />
-            <Tabs />
-          </NavigationContainer>
+        <NavigationContainer>
+          <StatusBar style="light" />
+          <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Tabs">
+            <Stack.Screen name="Tabs" component={Tabs} />
+            <Stack.Screen name="Login" component={Login} />
+          </Stack.Navigator>
+        </NavigationContainer>
       </TripProvider>
     </SafeAreaProvider>
   );

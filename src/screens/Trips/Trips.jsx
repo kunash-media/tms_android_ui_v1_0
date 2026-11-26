@@ -81,7 +81,7 @@ const Trips = () => {
           <Pressable
             key={t.id}
             onPress={() => setSelected(t)}
-            className="p-4 mb-4 bg-white border rounded-3xl border-slate-200 active:bg-slate-50"
+            className="p-4 mb-4 bg-white border rounded-3xl border-gray-400 active:bg-slate-50"
           >
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
@@ -98,7 +98,7 @@ const Trips = () => {
               </View>
             </View>
 
-            <View className="p-3 border rounded-2xl border-slate-200 bg-slate-50">
+            <View className="p-3 border rounded-2xl border-slate-400 bg-slate-50">
               <RouteList stops={t.stops} />
             </View>
 
